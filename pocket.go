@@ -6,10 +6,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
+	"github.com/tierko/go-pocket-sdk/internal/request"
+	"github.com/tierko/go-pocket-sdk/pkg/input"
+	"github.com/tierko/go-pocket-sdk/pkg/response"
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"strings"
 	"time"
 )
 
@@ -17,7 +19,9 @@ const (
 	host         = "https://getpocket.com/v3"
 	authorizeUrl = "https://getpocket.com/auth/authorize?request_token=%s&redirect_uri=%s"
 
-	endpointAdd          = "/add"
+	endpointAdd = "/add"
+	endpointGet = "/get"
+
 	endpointRequestToken = "/oauth/request"
 	endpointAuthorize    = "/oauth/authorize"
 
@@ -26,61 +30,6 @@ const (
 
 	defaultTimeout = 5 * time.Second
 )
-
-type (
-	requestTokenRequest struct {
-		ConsumerKey string `json:"consumer_key"`
-		RedirectURI string `json:"redirect_uri"`
-	}
-
-	authorizeRequest struct {
-		ConsumerKey string `json:"consumer_key"`
-		Code        string `json:"code"`
-	}
-
-	AuthorizeResponse struct {
-		AccessToken string `json:"access_token"`
-		Username    string `json:"username"`
-	}
-
-	addRequest struct {
-		URL         string `json:"url"`
-		Title       string `json:"title,omitempty"`
-		Tags        string `json:"tags,omitempty"`
-		AccessToken string `json:"access_token"`
-		ConsumerKey string `json:"consumer_key"`
-	}
-
-	// AddInput holds data necessary to create new item in Pocket list
-	AddInput struct {
-		URL         string
-		Title       string
-		Tags        []string
-		AccessToken string
-	}
-)
-
-func (i AddInput) validate() error {
-	if i.URL == "" {
-		return errors.New("required URL values is empty")
-	}
-
-	if i.AccessToken == "" {
-		return errors.New("access token is empty")
-	}
-
-	return nil
-}
-
-func (i AddInput) generateRequest(consumerKey string) addRequest {
-	return addRequest{
-		URL:         i.URL,
-		Tags:        strings.Join(i.Tags, ","),
-		Title:       i.Title,
-		AccessToken: i.AccessToken,
-		ConsumerKey: consumerKey,
-	}
-}
 
 // Client is a getpocket API client
 type Client struct {
@@ -104,7 +53,7 @@ func NewClient(consumerKey string) (*Client, error) {
 
 // GetRequestToken obtains the request token that is used to authorize user in your application
 func (c *Client) GetRequestToken(ctx context.Context, redirectUrl string) (string, error) {
-	inp := &requestTokenRequest{
+	inp := &request.RequestTokenRequest{
 		ConsumerKey: c.consumerKey,
 		RedirectURI: redirectUrl,
 	}
@@ -131,12 +80,12 @@ func (c *Client) GetAuthorizationURL(requestToken, redirectUrl string) (string, 
 }
 
 // Authorize generates access token for user, that authorized in your app via link
-func (c *Client) Authorize(ctx context.Context, requestToken string) (*AuthorizeResponse, error) {
+func (c *Client) Authorize(ctx context.Context, requestToken string) (*response.AuthorizeResponse, error) {
 	if requestToken == "" {
 		return nil, errors.New("empty request token")
 	}
 
-	inp := &authorizeRequest{
+	inp := &request.AuthorizeRequest{
 		Code:        requestToken,
 		ConsumerKey: c.consumerKey,
 	}
@@ -151,22 +100,31 @@ func (c *Client) Authorize(ctx context.Context, requestToken string) (*Authorize
 		return nil, errors.New("empty access token in API response")
 	}
 
-	return &AuthorizeResponse{
+	return &response.AuthorizeResponse{
 		AccessToken: accessToken,
 		Username:    username,
 	}, nil
 }
 
 // Add creates new item in Pocket list
-func (c *Client) Add(ctx context.Context, input AddInput) error {
-	if err := input.validate(); err != nil {
+func (c *Client) Add(ctx context.Context, input input.AddInput) error {
+	if err := input.Validate(); err != nil {
 		return err
 	}
 
-	req := input.generateRequest(c.consumerKey)
+	req := input.GenerateRequest(c.consumerKey)
 	_, err := c.doHTTP(ctx, endpointAdd, req)
 
 	return err
+}
+
+// Get request already existing items in Pocket list
+func (c *Client) Get(ctx context.Context, input input.GetInput) (interface{}, error) {
+	if err := input.Validate(); err != nil {
+		return nil, err
+	}
+
+	return nil, nil
 }
 
 func (c *Client) doHTTP(ctx context.Context, endpoint string, body interface{}) (url.Values, error) {

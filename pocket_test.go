@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/stretchr/testify/assert"
+	"github.com/tierko/go-pocket-sdk/pkg/input"
+	"github.com/tierko/go-pocket-sdk/pkg/response"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -169,7 +171,7 @@ func TestClient_Authorize(t *testing.T) {
 		expectedStatusCode   int
 		expectedResponse     string
 		expectedErrorMessage string
-		want                 *AuthorizeResponse
+		want                 *response.AuthorizeResponse
 		wantErr              bool
 	}{
 		{
@@ -180,7 +182,7 @@ func TestClient_Authorize(t *testing.T) {
 			},
 			expectedResponse:   "access_token=qwe-rty-123&username=testuser",
 			expectedStatusCode: 200,
-			want: &AuthorizeResponse{
+			want: &response.AuthorizeResponse{
 				AccessToken: "qwe-rty-123",
 				Username:    "testuser",
 			},
@@ -232,7 +234,7 @@ func TestClient_Authorize(t *testing.T) {
 func TestClient_Add(t *testing.T) {
 	type args struct {
 		ctx   context.Context
-		input AddInput
+		input input.AddInput
 	}
 	tests := []struct {
 		name               string
@@ -244,8 +246,8 @@ func TestClient_Add(t *testing.T) {
 			name: "Ok",
 			args: args{
 				ctx: context.Background(),
-				input: AddInput{
-					URL: "http://example.link",
+				input: input.AddInput{
+					URL:         "http://example.link",
 					AccessToken: "token",
 				},
 			},
@@ -255,7 +257,7 @@ func TestClient_Add(t *testing.T) {
 			name: "Empty URL",
 			args: args{
 				ctx: context.Background(),
-				input: AddInput{
+				input: input.AddInput{
 					AccessToken: "token",
 				},
 			},
@@ -265,7 +267,7 @@ func TestClient_Add(t *testing.T) {
 			name: "Empty Token",
 			args: args{
 				ctx: context.Background(),
-				input: AddInput{
+				input: input.AddInput{
 					URL: "http://example.link",
 				},
 			},
@@ -275,10 +277,10 @@ func TestClient_Add(t *testing.T) {
 			name: "With Title",
 			args: args{
 				ctx: context.Background(),
-				input: AddInput{
-					URL: "http://example.link",
+				input: input.AddInput{
+					URL:         "http://example.link",
 					AccessToken: "token",
-					Title: "example",
+					Title:       "example",
 				},
 			},
 			expectedStatusCode: 200,
@@ -287,11 +289,11 @@ func TestClient_Add(t *testing.T) {
 			name: "With Tags",
 			args: args{
 				ctx: context.Background(),
-				input: AddInput{
-					URL: "http://example.link",
+				input: input.AddInput{
+					URL:         "http://example.link",
 					AccessToken: "token",
-					Title: "example",
-					Tags: []string{"qwe", "rty", "123"},
+					Title:       "example",
+					Tags:        []string{"qwe", "rty", "123"},
 				},
 			},
 			expectedStatusCode: 200,
@@ -300,15 +302,15 @@ func TestClient_Add(t *testing.T) {
 			name: "Non-2XX Response",
 			args: args{
 				ctx: context.Background(),
-				input: AddInput{
-					URL: "http://example.link",
+				input: input.AddInput{
+					URL:         "http://example.link",
 					AccessToken: "token",
-					Title: "example",
-					Tags: []string{"qwe", "rty", "123"},
+					Title:       "example",
+					Tags:        []string{"qwe", "rty", "123"},
 				},
 			},
 			expectedStatusCode: 400,
-			wantErr: true,
+			wantErr:            true,
 		},
 	}
 

@@ -50,7 +50,7 @@ func (i AddInput) GenerateRequest(consumerKey string) request.AddRequest {
 	}
 }
 
-func (i GetInput) generateRequest(consumerKey string) request.GetRequest {
+func (i GetInput) GenerateRequest(consumerKey string) request.GetRequest {
 	return request.GetRequest{
 		ConsumerKey: consumerKey,
 		AccessToken: i.AccessToken,

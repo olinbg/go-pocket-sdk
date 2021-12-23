@@ -11,7 +11,6 @@ import (
 	"github.com/tierko/go-pocket-sdk/pkg/response"
 	"io/ioutil"
 	"net/http"
-	"net/url"
 	"time"
 )
 
@@ -63,11 +62,16 @@ func (c *Client) GetRequestToken(ctx context.Context, redirectUrl string) (strin
 		return "", err
 	}
 
-	if values.Get("code") == "" {
-		return "", errors.New("empty request token in API response")
+	var data map[string]interface{}
+
+	err = json.Unmarshal([]byte(values), &data)
+	if err != nil {
+		return "", err
 	}
 
-	return values.Get("code"), nil
+	code := data["code"].(string)
+
+	return code, nil
 }
 
 // GetAuthorizationURL generates link to authorize user
@@ -95,15 +99,19 @@ func (c *Client) Authorize(ctx context.Context, requestToken string) (*response.
 		return nil, err
 	}
 
-	accessToken, username := values.Get("access_token"), values.Get("username")
-	if accessToken == "" {
+	var authResponse response.AuthorizeResponse
+
+	err = json.Unmarshal([]byte(values), &authResponse)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if authResponse.AccessToken == "" {
 		return nil, errors.New("empty access token in API response")
 	}
 
-	return &response.AuthorizeResponse{
-		AccessToken: accessToken,
-		Username:    username,
-	}, nil
+	return &authResponse, err
 }
 
 // Add creates new item in Pocket list
@@ -119,48 +127,61 @@ func (c *Client) Add(ctx context.Context, input input.AddInput) error {
 }
 
 // Get request already existing items in Pocket list
-func (c *Client) Get(ctx context.Context, input input.GetInput) (interface{}, error) {
+func (c *Client) Get(ctx context.Context, input input.GetInput) (*response.GetResponse, error) {
 	if err := input.Validate(); err != nil {
 		return nil, err
 	}
 
-	return nil, nil
+	req := input.GenerateRequest(c.consumerKey)
+	values, err := c.doHTTP(ctx, endpointGet, req)
+
+	if err != nil {
+		return nil, err
+	}
+
+	var getResponse response.GetResponse
+
+	err = json.Unmarshal([]byte(values), &getResponse)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &getResponse, err
 }
 
-func (c *Client) doHTTP(ctx context.Context, endpoint string, body interface{}) (url.Values, error) {
+func (c *Client) doHTTP(ctx context.Context, endpoint string, body interface{}) (string, error) {
 	b, err := json.Marshal(body)
 	if err != nil {
-		return url.Values{}, errors.WithMessage(err, "failed to marshal input body")
+		return "", errors.WithMessage(err, "failed to marshal input body")
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, host+endpoint, bytes.NewBuffer(b))
 	if err != nil {
-		return url.Values{}, errors.WithMessage(err, "failed to create new request")
+		return "", errors.WithMessage(err, "failed to create new request")
 	}
 
 	req.Header.Set("Content-Type", "application/json; charset=UTF8")
+	req.Header.Set("X-Accept", "application/json")
 
 	resp, err := c.client.Do(req)
 	if err != nil {
-		return url.Values{}, errors.WithMessage(err, "failed to send http request")
+		return "", errors.WithMessage(err, "failed to send http request")
 	}
 
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		err := fmt.Sprintf("API Error: %s", resp.Header.Get(xErrorHeader))
-		return url.Values{}, errors.New(err)
+		return "", errors.New(err)
 	}
 
 	respB, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return url.Values{}, errors.WithMessage(err, "failed to read request body")
+		return "", errors.WithMessage(err, "failed to read request body")
 	}
 
-	values, err := url.ParseQuery(string(respB))
-	if err != nil {
-		return url.Values{}, errors.WithMessage(err, "failed to parse response body")
-	}
-
-	return values, nil
+	return string(respB), nil
 }

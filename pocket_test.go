@@ -8,8 +8,10 @@ import (
 	"github.com/tierko/go-pocket-sdk/pkg/response"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 type roundTripFunc func(r *http.Request) (*http.Response, error)
@@ -320,6 +322,58 @@ func TestClient_Add(t *testing.T) {
 
 			if err := c.Add(tt.args.ctx, tt.args.input); (err != nil) != tt.wantErr {
 				t.Errorf("Add() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestClient_Get(t *testing.T) {
+	type args struct {
+		ctx   context.Context
+		input input.GetInput
+	}
+	tests := []struct {
+		name                 string
+		args                 args
+		expectedStatusCode   int
+		expectedResponse     string
+		expectedErrorMessage string
+		wantErr              bool
+		want                 *response.GetResponse
+	}{
+		{
+			name: "Ok",
+			args: args{
+				ctx: context.Background(),
+				input: input.GetInput{
+					AccessToken: "token",
+				},
+			},
+			expectedStatusCode: 200,
+			expectedResponse:   "{\"status\":2,\"complete\":1,\"list\":[],\"error\":null,\"search_meta\":{\"search_type\":\"normal\"},\"since\":" + strconv.FormatInt(time.Now().Unix(), 10) + "}",
+			want: &response.GetResponse{
+				Status:   2,
+				Complete: 1,
+				List:     nil,
+				Error:    nil,
+				SearchMeta: struct {
+					SearchType string `json:"search_type"`
+				}(struct{ SearchType string }{SearchType: "normal"}),
+				Since: int(time.Now().Unix()),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := newClient(t, tt.expectedStatusCode, "/v3/get", tt.expectedResponse)
+
+			got, err := c.Get(tt.args.ctx, tt.args.input)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.want, got)
 			}
 		})
 	}

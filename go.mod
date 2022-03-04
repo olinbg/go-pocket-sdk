@@ -1,6 +1,6 @@
-module github.com/tierko/go-pocket-sdk
+module github.com/olinbg/go-pocket-sdk
 
-go 1.15
+go 1.17
 
 require (
 	github.com/pkg/errors v0.9.1

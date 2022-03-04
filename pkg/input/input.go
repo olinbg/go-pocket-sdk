@@ -2,7 +2,7 @@ package input
 
 import (
 	"github.com/pkg/errors"
-	"github.com/tierko/go-pocket-sdk/internal/request"
+	"github.com/ogay/go-pocket-sdk/internal/request"
 	"strings"
 )
 
